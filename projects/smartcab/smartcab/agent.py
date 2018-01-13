@@ -42,10 +42,17 @@ class LearningAgent(Agent):
         self.time_steps += 1
         #exponential decay
         self.epsilon = math.exp(-self.decay * self.time_steps)
+        # 1 / t ** 2
+        # self.epsilon = 1.0 / self.time_steps ** 2
+        # a ** t where 0 < a < 1
+        # self.epsilon = self.decay ** self.time_steps
         #special one I made
         # self.epsilon = -0.93 ** (-.1 * self.time_steps) + 2
         # Update additional class parameters as needed
         # If 'testing' is True, set epsilon and alpha to 0
+        if testing:
+            self.epsilon = 0
+            self.alpha = 0
 
         return None
 
@@ -69,15 +76,13 @@ class LearningAgent(Agent):
         # With the hand-engineered features, this learning process gets entirely negated.
         
         # Set 'state' as a tuple of relevant data for the agent        
-        def marshal_inputs_to_tuple(inputs):
-            light = inputs['light']
-            oncoming = inputs['oncoming']
-            right = inputs['right']
-            left = inputs['left']
-            return light, oncoming, right, left
-        inputs_tuple = marshal_inputs_to_tuple(inputs)
+        light = inputs['light']
+        oncoming = inputs['oncoming']
+        right = inputs['right']
+        left = inputs['left']
 
-        state = waypoint, inputs_tuple, deadline
+        # state = waypoint, light, oncoming, right, left, deadline
+        state = waypoint, light, oncoming, right, left
 
         return state
 
@@ -127,17 +132,19 @@ class LearningAgent(Agent):
         ## TO DO ##
         ###########
         # When not learning, choose a random action
-        random_action = random.choice(self.valid_actions)
         if not self.learning:
-            action = random_action
+            action = random.choice(self.valid_actions)
+
         # When learning, choose a random action with 'epsilon' probability
         elif random.uniform(0, 1) <= self.epsilon:
-            action = random_action
+            action = random.choice(self.valid_actions)
+
         # Otherwise, choose an action with the highest Q-value for the current state
         else:
             actions = self.Q.get(state, {})
             if not actions:
-                action = random_action
+                action = random.choice(self.valid_actions)
+
             else:
                 sorted_actions = sorted(actions.items(), key=lambda x: x[1], reverse=True)
                 best_Q_score = self.get_maxQ(state)
@@ -180,6 +187,11 @@ class LearningAgent(Agent):
 def run():
     """ Driving function for running the simulation. 
         Press ESC to close the simulation, or [SPACE] to pause the simulation. """
+    decay = 0.003
+    # decay = 0.5
+    alpha = .5
+    n_test = 30
+    tolerance = 0.03
 
     ##############
     # Create the environment
@@ -195,7 +207,7 @@ def run():
     #   learning   - set to True to force the driving agent to use Q-learning
     #    * epsilon - continuous value for the exploration factor, default is 1
     #    * alpha   - continuous value for the learning rate, default is 0.5
-    agent = env.create_agent(LearningAgent, learning=True, decay=.005, alpha=.005)
+    agent = env.create_agent(LearningAgent, learning=True, decay=decay, alpha=alpha)
     
     ##############
     # Follow the driving agent
@@ -211,14 +223,15 @@ def run():
     #   log_metrics  - set to True to log trial and simulation results to /logs
     #   optimized    - set to True to change the default log file name
     # sim = Simulator(env, update_delay=.000001, log_metrics=True, display=False, optimized=True)
-    sim = Simulator(env, update_delay=1, log_metrics=True, display=True, optimized=True)
+    sim = Simulator(env, update_delay=.000001, log_metrics=True, display=False, optimized=True)
     
     ##############
     # Run the simulator
     # Flags:
     #   tolerance  - epsilon tolerance before beginning testing, default is 0.05 
     #   n_test     - discrete number of testing trials to perform, default is 0
-    sim.run(n_test=10, tolerance=0.05)
+    # sim.run(n_test=20, tolerance=0.01)
+    sim.run(n_test=20, tolerance=tolerance)
 
 
 if __name__ == '__main__':
